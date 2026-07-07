@@ -108,7 +108,7 @@ export class X11KeyServer implements IGlobalKeyServer {
      */
     protected addPerms(path: string): Promise<void> {
         const options = {
-            name: "Global key listener",
+            name: this.config.promptTitle || "Global key listener",
         };
         return new Promise((res, err) => {
             sudo.exec(`chmod +x "${path}"`, options, (error, stdout, stderr) => {

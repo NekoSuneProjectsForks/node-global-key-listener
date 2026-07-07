@@ -6,4 +6,6 @@ export type IX11Config = {
     onError?: {(errorCode: number | null): void};
     /** Path to server executable */
     serverPath?: string
+    /** The name/title shown in the OS permission prompt when elevated access is required to make the server executable. Defaults to "Global key listener" */
+    promptTitle?: string
 };

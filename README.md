@@ -1,26 +1,3 @@
-# ARCHIVE NOTICE
-
-## TL;DR - This project is looking for maintainers
-
-If:
-
-1. you have experience with any of the following:
-    * Node-TypeScript
-    * Keyboard hooking on Windows (current implementation in C++)
-    * Keyboard hooking on Mac (current implementation in Swift)
-    * Keyboard hooking on Linux (current X11 implementation in C++)
-    * Publishing NPM packages
- 2. Own a Windows, Mac or Linux machine.
- 3. Are interested in maintaining an open source project (e.g. testing PRs on the system, fixing issues)
-
-Please [apply to become a maintainer](https://github.com/LaunchMenu/NGKL-MaintainerApplications). Otherwise this repo will remain archived.
-
-## Thanks & Goodbye
-
-This project was created as a result of the stability concerns for other NodeJS keyboard hooking projects, and initially for use with LaunchMenu. At the beginning we were investing heavily in [launchmenu](http://launchmenu.github.io), however unfortunately this project didn't kick off and the maintainers @TarVK and @Sancarn have moved onto bigger and better things. At this stage, it's been many years since this project has been actively maintained, and the previous stability of this project has been deteriating (see #36, #41, #34, #23). Thusly we sadly feel compelled to archive this project until new serious maintainers for this project hop on board.
-
-Thanks everyone for using this project, and we hope you get use out of the old stable versions.
-
 # node-global-key-listener
 
 ## Description
@@ -86,6 +63,10 @@ v.addListener(calledOnce);
         },
         mac: {
             onError: (errorCode) => console.error("ERROR: " + errorCode),
+            // Title shown in the macOS permission prompt if the server binary needs its
+            // executable bit restored. Must be alphanumeric + spaces only. Defaults to
+            // "Global key listener".
+            promptTitle: "My App"
         }
     })
 */
@@ -96,7 +77,7 @@ v.addListener(calledOnce);
 To install this npm package call:
 
 ```
-npm install node-global-key-listener
+npm install @nekosuneprojects/node-global-key-listener
 ```
 
 ## Is this the right package for you?
@@ -131,7 +112,7 @@ NodeJS has various packages for listening to keyboard events raised in the opera
 -   Cannot easily be used to listen for arbitrary keys
 -   Requires compilation with node-gyp. Sometimes the package is released with binaries, however these binaries need to be compiled seperately for each version of node. Furthermore, when compile errors occur the code given is a black box which you will need to fix, which may be complex if you're not used to the languages they are written in.
 
-### [node-global-key-listener](https://www.npmjs.com/package/node-global-key-listener)
+### [@nekosuneprojects/node-global-key-listener](https://www.npmjs.com/package/@nekosuneprojects/node-global-key-listener)
 
 #### Advantages:
 
@@ -145,6 +126,44 @@ NodeJS has various packages for listening to keyboard events raised in the opera
 -   Most execution occurs out-of-process. Our package executes and runs a seperate key server which NodeJS interfaces with over stdio. This means that this application might require permission to run depending on your anti-virus system.
 -   Some workarounds used may rarely lead to unexpected functionality, see windows specific implementation of windows key listeners
 -   If installed into an application on Mac explicit permission will be required from the user via Accessibility.
+
+## Antivirus / Windows Defender false positives
+
+Some antivirus products flag `WinKeyServer.exe` (and sometimes the Mac/X11 binaries) as a
+possible keylogger or generic trojan. This is a heuristic false positive, not a sign the binaries
+have been tampered with - but it's an expected one, for a real reason:
+
+-   The Windows binary works by installing a global `WH_KEYBOARD_LL`/`WH_MOUSE_LL` hook and
+    streaming every key/mouse event to stdout for the calling process to decide on. That is
+    structurally identical to how a real keylogger behaves, so generic heuristics key on it
+    regardless of intent.
+-   None of the prebuilt binaries in `bin/` are digitally signed (there's no code-signing
+    certificate associated with this project), and unsigned binaries with no reputation history
+    are scored more suspiciously by both antivirus engines and Windows SmartScreen.
+
+What this repo does to reduce false positives, without changing what the tool actually does:
+
+-   `WinKeyServer.exe` is now built with an embedded version-info resource (company/product/file
+    description) and an application manifest that explicitly requests `asInvoker` (i.e. it never
+    asks for elevated/admin rights). Unsigned binaries with no identifying metadata at all are
+    disproportionately likely to be flagged versus ones that identify themselves - see
+    `src/bin/WinKeyServer/version.rc` and `app.manifest`.
+-   The Mac/X11 binaries are `chmod +x`'d during `npm install` itself (see
+    `scripts/postinstall.js`), rather than only as a runtime fallback that silently pops a
+    sudo/admin prompt - a package that invokes privilege escalation unprompted is itself a pattern
+    some security scanners flag.
+
+What actually resolves it long-term, if you're shipping this as part of a distributed application:
+
+-   **Code-sign `WinKeyServer.exe`** (and notarize the Mac binary) with your own certificate as
+    part of your build/release pipeline. This is the only thing that meaningfully affects
+    SmartScreen/AV reputation for a binary that legitimately needs to hook global input.
+-   If you can't sign it, submit the specific flagged binary to your antivirus vendor (e.g.
+    Microsoft's [submission portal](https://www.microsoft.com/en-us/wdsi/filesubmission)) as a
+    false positive, or build the binaries yourself from source (`npm run compile-win` /
+    `compile-mac` / `compile-x11`) so the artifact isn't a generic, widely-hashed download.
+-   Never disable antivirus/SmartScreen entirely to "fix" this - scope any exclusion to the exact
+    file path of the binary you've verified.
 
 ## Developement
 

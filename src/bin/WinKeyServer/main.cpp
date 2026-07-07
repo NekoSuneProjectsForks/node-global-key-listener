@@ -102,8 +102,23 @@ struct data
 
 HHOOK hKeyboardHook;
 HHOOK hMouseHook;
-bool bIsMetaDown = false;
-bool bIsAltDown;
+
+/**
+ * Returns whether either Windows key or either Alt key is currently held down, queried directly from the
+ * OS rather than tracked via our own DOWN/UP bookkeeping.
+ * @remark Github issue #34: relying on locally tracked flags (only updated when *our* hook observes a
+ * matching key event) can desync from reality - e.g. when the session is locked with Win+L, the matching
+ * key-up is never delivered to this hook, leaving a stale "down" flag that causes the artifical VK_HELP
+ * fix below to fire incorrectly (and the Windows key to behave as if stuck) for the remainder of the session.
+ * Querying live state instead means we can never get stuck out of sync.
+ */
+bool isMetaOrAltDown()
+{
+    return (GetAsyncKeyState(VK_LWIN) & 0x8000) ||
+           (GetAsyncKeyState(VK_RWIN) & 0x8000) ||
+           (GetAsyncKeyState(VK_LMENU) & 0x8000) ||
+           (GetAsyncKeyState(VK_RMENU) & 0x8000);
+}
 
 /**
  * Main process entry point
@@ -159,20 +174,12 @@ __declspec(dllexport) LRESULT CALLBACK KeyboardEvent(int nCode, WPARAM wParam, L
         {
             //fixes issue https://github.com/LaunchMenu/node-global-key-listener/issues/3
             //TODO: maybe there is a better fix for this which doesn't involve sending arbitrary key events?
-            if (bIsMetaDown || bIsAltDown)
+            if (isMetaOrAltDown())
             {
                 printErr("Sending VK_HELP to prevent win_key_up triggering start menu");
                 fakeKey(KEYEVENTF_KEYUP, VK_HELP);
             }
             return 1;
-        }
-        else
-        {
-            //Work around for Windows key behaviour. See github issue #3
-            if (key.vkCode == VK_LWIN || key.vkCode == VK_RWIN)
-                bIsMetaDown = ks == down;
-            if (key.vkCode == VK_LMENU || key.vkCode == VK_RMENU)
-                bIsAltDown = ks == down;
         }
     }
     return CallNextHookEx(hKeyboardHook, nCode, wParam, lParam);

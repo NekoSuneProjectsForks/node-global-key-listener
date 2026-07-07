@@ -1,14 +1,16 @@
 {
-    "name": "node-global-key-listener",
+    "name": "@nekosuneprojects/node-global-key-listener",
     "version": "0.3.0",
     "description": "A module to listen to global key events",
     "types": "build/index.d.ts",
     "main": "build/index.js",
     "files": [
         "bin/**/*",
-        "build/**/*"
+        "build/**/*",
+        "scripts/postinstall.js"
     ],
     "scripts": {
+        "postinstall": "node scripts/postinstall.js",
         "watch": "tsc -w",
         "build": "tsc",
         "test": "node build/test.js",

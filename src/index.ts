@@ -64,6 +64,11 @@ export class GlobalKeyboardListener {
      * @throws An exception if the process could not be started
      */
     public async addListener(listener: IGlobalKeyListener): Promise<void> {
+        if (typeof listener != "function")
+            throw new TypeError(
+                "listener must be a function of the form (event, isDownMap) => void, e.g. addListener((e, down) => {...})"
+            );
+
         this.listeners.push(listener);
         if (this.listeners.length == 1) {
             clearTimeout(this.stopTimeoutID);
